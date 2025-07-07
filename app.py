@@ -40,20 +40,33 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def extract_features(image_path: str) -> str:
+    # Open and convert the image
     try:
         image = Image.open(image_path).convert("RGB")
+        print(f"Image type: {type(image)}")  # Debug: Check initial type
     except Exception as e:
         raise ValueError(f"Failed to open image: {str(e)}")
 
+    # Apply transformation
     try:
         tensor = transform(image)
-        if len(tensor.shape) == 3:
+        print(f"Transformed tensor type: {type(tensor)}")  # Debug: Check tensor type
+        if not isinstance(tensor, torch.Tensor):
+            raise ValueError(f"Transform output is not a tensor, got {type(tensor)}")
+        print(f"Transformed tensor shape: {tensor.shape if hasattr(tensor, 'shape') else 'No shape attribute'}")  # Debug: Check shape
+    except Exception as e:
+        raise ValueError(f"Transformation failed: {str(e)}")
+
+    # Ensure tensor is 4D (batch, channels, height, width)
+    try:
+        if len(tensor.shape) == 3:  # Add batch dimension if missing
             tensor = tensor.unsqueeze(0)
         elif len(tensor.shape) != 4:
             raise ValueError(f"Unexpected tensor shape: {tensor.shape}")
         tensor = tensor.to(device)
+        print(f"Unsqueezed tensor shape: {tensor.shape}, device: {tensor.device}")  # Debug
     except Exception as e:
-        raise ValueError(f"Transformation failed: {str(e)}")
+        raise ValueError(f"Tensor shaping failed: {str(e)}")
 
     with torch.no_grad():
         try:
@@ -62,6 +75,7 @@ def extract_features(image_path: str) -> str:
         except Exception as e:
             raise ValueError(f"Model inference failed: {str(e)}")
 
+    # Provide a human-like description from class index
     return f"Visual profile score: {class_index} (used for team personality match)"
 
 def get_pokemon_team(description: str) -> str:
