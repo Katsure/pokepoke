@@ -7,6 +7,10 @@ import torchvision.models as models
 import os
 import requests
 from flask_cors import CORS
+from dotenv import load_dotenv  # <-- NEW
+
+# --- Load environment variables ---
+load_dotenv()  # <-- NEW
 
 # --- Configurations ---
 UPLOAD_FOLDER = "uploads"
@@ -18,7 +22,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 CORS(app)
 
 LLM_API_URL = "https://openrouter.ai/api/v1/chat/completions"
-LLM_API_KEY = "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"  # Replace this with your actual API key
+LLM_API_KEY = os.getenv("OPENROUTER_API_KEY")  # <-- NEW: from .env
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -32,39 +36,24 @@ transform = transforms.Compose([
     transforms.ToTensor(),
 ])
 
-# --- Helper Functions ---
-
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def extract_features(image_path: str) -> str:
-    # Open and convert the image
     try:
         image = Image.open(image_path).convert("RGB")
-        print(f"Image type: {type(image)}")  # Debug: Check initial type
     except Exception as e:
         raise ValueError(f"Failed to open image: {str(e)}")
 
-    # Apply transformation
     try:
         tensor = transform(image)
-        print(f"Transformed tensor type: {type(tensor)}")  # Debug: Check tensor type
-        if not isinstance(tensor, torch.Tensor):
-            raise ValueError(f"Transform output is not a tensor, got {type(tensor)}")
-        print(f"Transformed tensor shape: {tensor.shape if hasattr(tensor, 'shape') else 'No shape attribute'}")  # Debug: Check shape
-    except Exception as e:
-        raise ValueError(f"Transformation failed: {str(e)}")
-
-    # Ensure tensor is 4D (batch, channels, height, width)
-    try:
-        if len(tensor.shape) == 3:  # Add batch dimension if missing
+        if len(tensor.shape) == 3:
             tensor = tensor.unsqueeze(0)
         elif len(tensor.shape) != 4:
             raise ValueError(f"Unexpected tensor shape: {tensor.shape}")
         tensor = tensor.to(device)
-        print(f"Unsqueezed tensor shape: {tensor.shape}, device: {tensor.device}")  # Debug
     except Exception as e:
-        raise ValueError(f"Tensor shaping failed: {str(e)}")
+        raise ValueError(f"Transformation failed: {str(e)}")
 
     with torch.no_grad():
         try:
@@ -73,7 +62,6 @@ def extract_features(image_path: str) -> str:
         except Exception as e:
             raise ValueError(f"Model inference failed: {str(e)}")
 
-    # Provide a human-like description from class index
     return f"Visual profile score: {class_index} (used for team personality match)"
 
 def get_pokemon_team(description: str) -> str:
@@ -103,15 +91,12 @@ Team: [Name1, Name2, Name3, Name4, Name5]
     response.raise_for_status()
     return response.json()["choices"][0]["message"]["content"]
 
-# --- Flask Route ---
-
 @app.route('/generate_team', methods=['POST'])
 def generate_team():
     if 'image' not in request.files:
         return jsonify({"error": "No image uploaded"}), 400
 
     file = request.files['image']
-
     if file.filename == '' or not allowed_file(file.filename):
         return jsonify({"error": "Invalid image format"}), 400
 
@@ -129,6 +114,5 @@ def generate_team():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# --- Start Server ---
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
