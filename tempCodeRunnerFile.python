@@ -1,0 +1,55 @@
+import threading #name:Hansik Sarma;22-188
+import queue
+import time
+import random
+
+# Define a thread-safe priority queue
+priority_queue = queue.PriorityQueue()
+
+# Number of producer and consumer threads
+NUM_PRODUCERS = 3
+NUM_CONSUMERS = 2
+NUM_TASKS = 10
+
+def producer(producer_id):
+    """Producer thread: Adds tasks to the priority queue with random priorities."""
+    for _ in range(NUM_TASKS):
+        priority = random.randint(1, 10)  # Lower value = higher priority
+        task = f"Task from Producer-{producer_id} with priority {priority}"
+        priority_queue.put((priority, task))
+        print(f"Produced: {task}")
+        time.sleep(random.uniform(0.1, 0.5))  # Simulate work delay
+
+def consumer(consumer_id):
+    """Consumer thread: Retrieves and processes tasks from the priority queue."""
+    while True:
+        try:
+            priority, task = priority_queue.get(timeout=3)  # Wait for a task
+            print(f"Consumer-{consumer_id} processing: {task}")
+            time.sleep(random.uniform(0.2, 0.6))  # Simulate processing delay
+            priority_queue.task_done()
+        except queue.Empty:
+            break  # Exit when queue is empty
+
+# Create and start producer threads
+producer_threads = [threading.Thread(target=producer, args=(i,)) for i in range(NUM_PRODUCERS)]
+for thread in producer_threads:
+    thread.start()
+
+# Create and start consumer threads
+consumer_threads = [threading.Thread(target=consumer, args=(i,)) for i in range(NUM_CONSUMERS)]
+for thread in consumer_threads:
+    thread.start()
+
+# Wait for all producer threads to finish
+for thread in producer_threads:
+    thread.join()
+
+# Wait for all tasks in the queue to be processed
+priority_queue.join()
+
+# Wait for all consumer threads to finish
+for thread in consumer_threads:
+    thread.join()
+
+print("All tasks have been processed.")
