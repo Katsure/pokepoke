@@ -82,7 +82,7 @@ tenacity==9.1.2
 timm==1.0.15
 tokenizers==0.21.2
 toml==0.10.2
-torch==2.7.1+cpu
+torch==2.5.1
 torchaudio==2.7.1+cpu
 torchvision==0.22.1+cpu
 tornado==6.4.2
