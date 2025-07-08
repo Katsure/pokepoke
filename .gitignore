@@ -1,3 +1,7 @@
+venv311/
 .env
 __pycache__/
-uploads/
+*.pyc
+*.pyd
+*.dll
+*.so
